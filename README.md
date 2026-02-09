@@ -56,10 +56,34 @@ Build for production:
 npm run build
 ```
 
+This creates a `dist` folder with the compiled application.
+
 Preview the production build:
 ```bash
 npm run preview
 ```
+
+## GitHub Pages Deployment
+
+This project is configured with GitHub Actions for automatic deployment to GitHub Pages.
+
+### Setup (One-time)
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Source**, select **GitHub Actions**
+
+### Deployment
+
+The site automatically deploys when you push to the `main` branch. The workflow will:
+- Install dependencies
+- Run all tests
+- Build the application
+- Deploy to GitHub Pages
+
+Your site will be available at: `https://yourusername.github.io/MortgagePayoffCalculator/`
+
+You can also manually trigger a deployment from the **Actions** tab on GitHub.
 
 ## Testing
 
