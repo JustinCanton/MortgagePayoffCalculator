@@ -1,27 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { MortgageCalculator } from './mortgage-calculator';
-
-type PaymentFrequency = 
-  | 'monthly'
-  | 'semi-monthly'
-  | 'bi-weekly'
-  | 'accelerated-bi-weekly'
-  | 'weekly'
-  | 'accelerated-weekly';
-
-type CompoundingMethod = 'canadian' | 'us';
-type YearlyPaymentTiming = 'start' | 'middle' | 'end';
-
-interface MortgageResult {
-  regularPayment: number;
-  totalPayments: number;
-  totalInterest: number;
-  totalPaid: number;
-  payoffMonths: number;
-  termInterest: number;
-  termPrincipal: number;
-  balanceAtTermEnd: number;
-}
+import { calculateMortgage } from './mortgage-calculations';
+import type {
+  PaymentFrequency,
+  CompoundingMethod,
+  YearlyPaymentTiming,
+  MortgageResult,
+} from './types';
 
 // Test interface to access private members for testing
 interface MortgageCalculatorTestable {
@@ -35,16 +20,6 @@ interface MortgageCalculatorTestable {
   extraYearlyPayment: number;
   yearlyPaymentTiming: YearlyPaymentTiming;
   oneTimePayment: number;
-  calculateMortgage(options: {
-    principal: number;
-    annualRate: number;
-    years: number;
-    frequency: PaymentFrequency;
-    extraPayment?: number;
-    extraYearly?: number;
-    oneTime?: number;
-    yearlyTiming?: YearlyPaymentTiming;
-  }): MortgageResult;
 }
 
 describe('MortgageCalculator', () => {
@@ -55,11 +30,28 @@ describe('MortgageCalculator', () => {
     calculator.interestRate = 4.5;
     calculator.loanTermYears = 25;
     calculator.termLength = 5;
-    calculator.compoundingMethod = 'canadian';
+    calculator.compoundingMethod = 'semi-annual';
     calculator.extraPayment = 0;
     calculator.extraYearlyPayment = 0;
     calculator.oneTimePayment = 0;
     return calculator;
+  };
+
+  // Helper function to call calculateMortgage with calculator settings
+  const calcMortgage = (
+    calculator: MortgageCalculatorTestable,
+    options: {
+      principal: number;
+      annualRate: number;
+      years: number;
+      frequency: PaymentFrequency;
+      extraPayment?: number;
+      extraYearly?: number;
+      oneTime?: number;
+      yearlyTiming?: YearlyPaymentTiming;
+    }
+  ): MortgageResult => {
+    return calculateMortgage(options, calculator.compoundingMethod, calculator.termLength);
   };
 
   describe('Monthly Payment Frequency', () => {
@@ -67,12 +59,16 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
-        principal: 750000,
-        annualRate: 4.5,
-        years: 25,
-        frequency: 'monthly'
-      });
+      const result = calculateMortgage(
+        {
+          principal: 750000,
+          annualRate: 4.5,
+          years: 25,
+          frequency: 'monthly'
+        },
+        calculator.compoundingMethod,
+        calculator.termLength
+      );
 
       expect(result.regularPayment).toBeCloseTo(4151.05, 2);
       expect(result.payoffMonths).toBe(300);
@@ -84,12 +80,16 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
-        principal: 750000,
-        annualRate: 4.5,
-        years: 25,
-        frequency: 'monthly'
-      });
+      const result = calculateMortgage(
+        {
+          principal: 750000,
+          annualRate: 4.5,
+          years: 25,
+          frequency: 'monthly'
+        },
+        calculator.compoundingMethod,
+        calculator.termLength
+      );
 
       expect(result.termInterest).toBeGreaterThan(0);
       expect(result.termPrincipal).toBeGreaterThan(0);
@@ -103,7 +103,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'semi-monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -123,7 +123,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'bi-weekly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -143,7 +143,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'accelerated-bi-weekly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -159,14 +159,14 @@ describe('MortgageCalculator', () => {
     it('should payoff faster than regular bi-weekly', () => {
       const calculator = createCalculator();
       
-      const regular = calculator.calculateMortgage({
+      const regular = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'bi-weekly'
       });
 
-      const accelerated = calculator.calculateMortgage({
+      const accelerated = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -183,7 +183,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'weekly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -203,7 +203,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'accelerated-weekly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -219,14 +219,14 @@ describe('MortgageCalculator', () => {
     it('should payoff faster than regular weekly', () => {
       const calculator = createCalculator();
       
-      const regular = calculator.calculateMortgage({
+      const regular = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'weekly'
       });
 
-      const accelerated = calculator.calculateMortgage({
+      const accelerated = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -244,14 +244,14 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const withoutExtra = calculator.calculateMortgage({
+      const withoutExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      const withExtra = calculator.calculateMortgage({
+      const withExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -267,7 +267,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -285,14 +285,14 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const withoutExtra = calculator.calculateMortgage({
+      const withoutExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      const withExtra = calculator.calculateMortgage({
+      const withExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -308,14 +308,14 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const withoutExtra = calculator.calculateMortgage({
+      const withoutExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      const withExtra = calculator.calculateMortgage({
+      const withExtra = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -331,28 +331,28 @@ describe('MortgageCalculator', () => {
   });
 
   describe('Compounding Methods', () => {
-    it('should calculate differently for Canadian vs US compounding', () => {
+    it('should calculate differently for semi-annual vs monthly compounding', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
-      calculator.compoundingMethod = 'canadian';
+      calculator.compoundingMethod = 'semi-annual';
       
-      const canadian = calculator.calculateMortgage({
+      const semiAnnual = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      calculator.compoundingMethod = 'us';
-      const us = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'monthly';
+      const us = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      expect(canadian.regularPayment).not.toBe(us.regularPayment);
-      expect(canadian.totalInterest).not.toBe(us.totalInterest);
+      expect(semiAnnual.regularPayment).not.toBe(us.regularPayment);
+      expect(semiAnnual.totalInterest).not.toBe(us.totalInterest);
     });
   });
 
@@ -362,7 +362,7 @@ describe('MortgageCalculator', () => {
       calculator.paymentFrequency = 'monthly';
       calculator.termLength = 5;
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -386,7 +386,7 @@ describe('MortgageCalculator', () => {
       calculator.paymentFrequency = 'monthly';
       calculator.termLength = 5;
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -403,7 +403,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 10000,
         annualRate: 4.5,
         years: 1,
@@ -419,7 +419,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 100000,
         annualRate: 0.001,
         years: 10,
@@ -435,7 +435,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 1000000,
         annualRate: 4.5,
         years: 25,
@@ -452,10 +452,10 @@ describe('MortgageCalculator', () => {
     it('should have similar totals across non-accelerated frequencies', () => {
       const calculator = createCalculator();
       
-      const monthly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'monthly' });
-      const semiMonthly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'semi-monthly' });
-      const biWeekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'bi-weekly' });
-      const weekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'weekly' });
+      const monthly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'monthly' });
+      const semiMonthly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'semi-monthly' });
+      const biWeekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'bi-weekly' });
+      const weekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'weekly' });
 
       // All should have similar interest (within a reasonable margin)
       // More frequent payments result in slightly less interest due to compounding
@@ -470,10 +470,10 @@ describe('MortgageCalculator', () => {
     it('should show accelerated frequencies pay less interest', () => {
       const calculator = createCalculator();
       
-      const biWeekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'bi-weekly' });
-      const acceleratedBiWeekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'accelerated-bi-weekly' });
-      const weekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'weekly' });
-      const acceleratedWeekly = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'accelerated-weekly' });
+      const biWeekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'bi-weekly' });
+      const acceleratedBiWeekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'accelerated-bi-weekly' });
+      const weekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'weekly' });
+      const acceleratedWeekly = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'accelerated-weekly' });
 
       expect(acceleratedBiWeekly.totalInterest).toBeLessThan(biWeekly.totalInterest);
       expect(acceleratedWeekly.totalInterest).toBeLessThan(weekly.totalInterest);
@@ -485,7 +485,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -504,7 +504,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -526,7 +526,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -548,7 +548,7 @@ describe('MortgageCalculator', () => {
       const calculator = createCalculator();
       calculator.paymentFrequency = 'monthly';
       
-      const startTiming = calculator.calculateMortgage({
+      const startTiming = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -557,7 +557,7 @@ describe('MortgageCalculator', () => {
         yearlyTiming: 'start'
       });
 
-      const middleTiming = calculator.calculateMortgage({
+      const middleTiming = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -566,7 +566,7 @@ describe('MortgageCalculator', () => {
         yearlyTiming: 'middle'
       });
 
-      const endTiming = calculator.calculateMortgage({
+      const endTiming = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -587,7 +587,7 @@ describe('MortgageCalculator', () => {
     it('should work with yearly payment timing for different frequencies', () => {
       const calculator = createCalculator();
       
-      const monthlyStart = calculator.calculateMortgage({
+      const monthlyStart = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -596,7 +596,7 @@ describe('MortgageCalculator', () => {
         yearlyTiming: 'start'
       });
 
-      const biWeeklyStart = calculator.calculateMortgage({
+      const biWeeklyStart = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -605,7 +605,7 @@ describe('MortgageCalculator', () => {
         yearlyTiming: 'start'
       });
 
-      const weeklyEnd = calculator.calculateMortgage({
+      const weeklyEnd = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -620,7 +620,7 @@ describe('MortgageCalculator', () => {
       expect(weeklyEnd.payoffMonths).toBeGreaterThan(0);
 
       // All should have less interest than no extra payments
-      const noExtra = calculator.calculateMortgage({ principal: 750000, annualRate: 4.5, years: 25, frequency: 'monthly' });
+      const noExtra = calcMortgage(calculator, { principal: 750000, annualRate: 4.5, years: 25, frequency: 'monthly' });
       expect(monthlyStart.totalInterest).toBeLessThan(noExtra.totalInterest);
       expect(biWeeklyStart.totalInterest).toBeLessThan(noExtra.totalInterest);
       expect(weeklyEnd.totalInterest).toBeLessThan(noExtra.totalInterest);
@@ -631,7 +631,7 @@ describe('MortgageCalculator', () => {
       calculator.paymentFrequency = 'monthly';
       
       // Call without timing parameter (should default to 'start')
-      const resultDefault = calculator.calculateMortgage({
+      const resultDefault = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -639,7 +639,7 @@ describe('MortgageCalculator', () => {
         extraYearly: 25000
       });
 
-      const resultExplicitStart = calculator.calculateMortgage({
+      const resultExplicitStart = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 4.5,
         years: 25,
@@ -657,7 +657,7 @@ describe('MortgageCalculator', () => {
   describe('Different Loan Amounts', () => {
     it('should handle small loan amounts', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 50000,
         annualRate: 4.5,
         years: 10,
@@ -671,7 +671,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle medium loan amounts', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 350000,
         annualRate: 4.5,
         years: 25,
@@ -685,7 +685,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle very large loan amounts', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 2000000,
         annualRate: 4.5,
         years: 30,
@@ -701,7 +701,7 @@ describe('MortgageCalculator', () => {
   describe('Different Interest Rates', () => {
     it('should calculate correctly for very low interest rates', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 1,
         years: 25,
@@ -710,7 +710,7 @@ describe('MortgageCalculator', () => {
 
       expect(result.regularPayment).toBeGreaterThan(0);
       expect(result.totalInterest).toBeGreaterThan(0);
-      const highRateResult = calculator.calculateMortgage({
+      const highRateResult = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 5,
         years: 25,
@@ -721,7 +721,7 @@ describe('MortgageCalculator', () => {
 
     it('should calculate correctly for moderate interest rates', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 600000,
         annualRate: 3.5,
         years: 25,
@@ -734,7 +734,7 @@ describe('MortgageCalculator', () => {
 
     it('should calculate correctly for high interest rates', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 7.5,
         years: 25,
@@ -747,14 +747,14 @@ describe('MortgageCalculator', () => {
 
     it('should show higher rates result in more interest', () => {
       const calculator = createCalculator();
-      const lowRate = calculator.calculateMortgage({
+      const lowRate = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 2.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      const highRate = calculator.calculateMortgage({
+      const highRate = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 6.5,
         years: 25,
@@ -769,7 +769,7 @@ describe('MortgageCalculator', () => {
   describe('Different Amortization Periods', () => {
     it('should calculate correctly for 15-year term', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 15,
@@ -783,7 +783,7 @@ describe('MortgageCalculator', () => {
 
     it('should calculate correctly for 20-year term', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 20,
@@ -796,7 +796,7 @@ describe('MortgageCalculator', () => {
 
     it('should calculate correctly for 30-year term', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 30,
@@ -809,14 +809,14 @@ describe('MortgageCalculator', () => {
 
     it('should show shorter terms have higher payments but less total interest', () => {
       const calculator = createCalculator();
-      const fifteenYear = calculator.calculateMortgage({
+      const fifteenYear = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 15,
         frequency: 'monthly'
       });
 
-      const thirtyYear = calculator.calculateMortgage({
+      const thirtyYear = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 30,
@@ -833,7 +833,7 @@ describe('MortgageCalculator', () => {
     it('should calculate correctly for 1-year term', () => {
       const calculator = createCalculator();
       calculator.termLength = 1;
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -849,7 +849,7 @@ describe('MortgageCalculator', () => {
     it('should calculate correctly for 3-year term', () => {
       const calculator = createCalculator();
       calculator.termLength = 3;
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -864,7 +864,7 @@ describe('MortgageCalculator', () => {
     it('should calculate correctly for 10-year term', () => {
       const calculator = createCalculator();
       calculator.termLength = 10;
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -879,7 +879,7 @@ describe('MortgageCalculator', () => {
     it('should show longer terms accumulate more interest', () => {
       const calculator = createCalculator();
       calculator.termLength = 3;
-      const threeYear = calculator.calculateMortgage({
+      const threeYear = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -887,7 +887,7 @@ describe('MortgageCalculator', () => {
       });
 
       calculator.termLength = 7;
-      const sevenYear = calculator.calculateMortgage({
+      const sevenYear = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -903,7 +903,7 @@ describe('MortgageCalculator', () => {
   describe('Extra Payment Edge Cases', () => {
     it('should handle very small extra payments', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -911,7 +911,7 @@ describe('MortgageCalculator', () => {
         extraPayment: 10
       });
 
-      const noExtra = calculator.calculateMortgage({
+      const noExtra = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -924,7 +924,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle large extra payments', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -938,7 +938,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle extra payment larger than regular payment', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -952,7 +952,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle very large one-time payment', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -966,7 +966,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle multiple yearly payments over loan life', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -979,76 +979,76 @@ describe('MortgageCalculator', () => {
     });
   });
 
-  describe('Canadian vs US Compounding Differences', () => {
-    it('should show Canadian compounding for bi-weekly payments', () => {
+  describe('Semi-Annual vs Monthly Compounding Differences', () => {
+    it('should show semi-annual compounding for bi-weekly payments', () => {
       const calculator = createCalculator();
-      calculator.compoundingMethod = 'canadian';
-      const canadian = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'semi-annual';
+      const semiAnnual = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'bi-weekly'
       });
 
-      calculator.compoundingMethod = 'us';
-      const us = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'monthly';
+      const us = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'bi-weekly'
       });
 
-      expect(canadian.regularPayment).not.toBeCloseTo(us.regularPayment, 0);
-      expect(canadian.totalInterest).not.toBeCloseTo(us.totalInterest, 0);
+      expect(semiAnnual.regularPayment).not.toBeCloseTo(us.regularPayment, 0);
+      expect(semiAnnual.totalInterest).not.toBeCloseTo(us.totalInterest, 0);
     });
 
-    it('should show Canadian compounding for weekly payments', () => {
+    it('should show semi-annual compounding for weekly payments', () => {
       const calculator = createCalculator();
-      calculator.compoundingMethod = 'canadian';
-      const canadian = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'semi-annual';
+      const semiAnnual = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'weekly'
       });
 
-      calculator.compoundingMethod = 'us';
-      const us = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'monthly';
+      const us = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'weekly'
       });
 
-      expect(Math.abs(canadian.totalInterest - us.totalInterest)).toBeGreaterThan(1000);
+      expect(Math.abs(semiAnnual.totalInterest - us.totalInterest)).toBeGreaterThan(1000);
     });
 
-    it('should show meaningful difference between Canadian and US compounding', () => {
+    it('should show meaningful difference between semi-annual and monthly compounding', () => {
       const calculator = createCalculator();
-      calculator.compoundingMethod = 'canadian';
-      const canadian = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'semi-annual';
+      const semiAnnual = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 5,
         years: 25,
         frequency: 'monthly'
       });
 
-      calculator.compoundingMethod = 'us';
-      const us = calculator.calculateMortgage({
+      calculator.compoundingMethod = 'monthly';
+      const monthly = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 5,
         years: 25,
         frequency: 'monthly'
       });
 
-      expect(Math.abs(canadian.regularPayment - us.regularPayment)).toBeGreaterThan(10);
+      expect(Math.abs(semiAnnual.regularPayment - monthly.regularPayment)).toBeGreaterThan(10);
     });
   });
 
   describe('Precision and Rounding', () => {
     it('should produce consistent results with decimal principals', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 475350.75,
         annualRate: 4.5,
         years: 25,
@@ -1062,7 +1062,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle interest rates with many decimals', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.875,
         years: 25,
@@ -1075,14 +1075,14 @@ describe('MortgageCalculator', () => {
 
     it('should produce consistent results across multiple calculations', () => {
       const calculator = createCalculator();
-      const result1 = calculator.calculateMortgage({
+      const result1 = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'monthly'
       });
 
-      const result2 = calculator.calculateMortgage({
+      const result2 = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1098,7 +1098,7 @@ describe('MortgageCalculator', () => {
   describe('Boundary Conditions', () => {
     it('should handle minimum viable loan', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 1000,
         annualRate: 4.5,
         years: 1,
@@ -1112,7 +1112,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle very short term with high rate', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 100000,
         annualRate: 10,
         years: 5,
@@ -1125,7 +1125,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle accelerated payments with low rate', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 2,
         years: 25,
@@ -1144,29 +1144,29 @@ describe('MortgageCalculator', () => {
       const rate = 4.5;
       const years = 25;
 
-      const monthly = calculator.calculateMortgage({ principal, annualRate: rate, years, frequency: 'monthly' });
+      const monthly = calcMortgage(calculator, { principal, annualRate: rate, years, frequency: 'monthly' });
       expect(monthly.payoffMonths).toBeLessThanOrEqual(301);
 
-      const semiMonthly = calculator.calculateMortgage({ principal, annualRate: rate, years, frequency: 'semi-monthly' });
+      const semiMonthly = calcMortgage(calculator, { principal, annualRate: rate, years, frequency: 'semi-monthly' });
       expect(semiMonthly.totalPayments).toBeGreaterThan(monthly.totalPayments * 1.9);
 
-      const biWeekly = calculator.calculateMortgage({ principal, annualRate: rate, years, frequency: 'bi-weekly' });
+      const biWeekly = calcMortgage(calculator, { principal, annualRate: rate, years, frequency: 'bi-weekly' });
       expect(biWeekly.totalPayments).toBeGreaterThan(monthly.totalPayments * 2);
 
-      const weekly = calculator.calculateMortgage({ principal, annualRate: rate, years, frequency: 'weekly' });
+      const weekly = calcMortgage(calculator, { principal, annualRate: rate, years, frequency: 'weekly' });
       expect(weekly.totalPayments).toBeGreaterThan(monthly.totalPayments * 4);
     });
 
     it('should show accelerated payments reduce total payments made', () => {
       const calculator = createCalculator();
-      const biWeekly = calculator.calculateMortgage({
+      const biWeekly = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
         frequency: 'bi-weekly'
       });
 
-      const acceleratedBiWeekly = calculator.calculateMortgage({
+      const acceleratedBiWeekly = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1181,7 +1181,7 @@ describe('MortgageCalculator', () => {
   describe('Combination Scenarios', () => {
     it('should handle low principal, high rate, short term', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 100000,
         annualRate: 8,
         years: 10,
@@ -1195,7 +1195,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle high principal, low rate, long term', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 1500000,
         annualRate: 2.5,
         years: 30,
@@ -1209,7 +1209,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle accelerated weekly with yearly extra at high rate', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 750000,
         annualRate: 6.5,
         years: 25,
@@ -1224,7 +1224,7 @@ describe('MortgageCalculator', () => {
 
     it('should handle semi-monthly with all extra payment types', () => {
       const calculator = createCalculator();
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 600000,
         annualRate: 4.5,
         years: 25,
@@ -1234,7 +1234,7 @@ describe('MortgageCalculator', () => {
         oneTime: 25000
       });
 
-      const noExtra = calculator.calculateMortgage({
+      const noExtra = calcMortgage(calculator, {
         principal: 600000,
         annualRate: 4.5,
         years: 25,
@@ -1250,7 +1250,7 @@ describe('MortgageCalculator', () => {
     it('should show interest is front-loaded in amortization', () => {
       const calculator = createCalculator();
       calculator.termLength = 5;
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1267,14 +1267,14 @@ describe('MortgageCalculator', () => {
 
     it('should show total interest increases with lower payments', () => {
       const calculator = createCalculator();
-      const shortTerm = calculator.calculateMortgage({
+      const shortTerm = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 15,
         frequency: 'monthly'
       });
 
-      const longTerm = calculator.calculateMortgage({
+      const longTerm = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 30,
@@ -1288,7 +1288,7 @@ describe('MortgageCalculator', () => {
   describe('Payment Impact Analysis', () => {
     it('should show doubling extra payment roughly halves payoff time', () => {
       const calculator = createCalculator();
-      const smallExtra = calculator.calculateMortgage({
+      const smallExtra = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1296,7 +1296,7 @@ describe('MortgageCalculator', () => {
         extraPayment: 200
       });
 
-      const largeExtra = calculator.calculateMortgage({
+      const largeExtra = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1304,7 +1304,7 @@ describe('MortgageCalculator', () => {
         extraPayment: 400
       });
 
-      const noExtra = calculator.calculateMortgage({
+      const noExtra = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1320,7 +1320,7 @@ describe('MortgageCalculator', () => {
     it('should show early one-time payment saves more interest', () => {
       const calculator = createCalculator();
       // One-time payment applied immediately has more impact
-      const result = calculator.calculateMortgage({
+      const result = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1328,7 +1328,7 @@ describe('MortgageCalculator', () => {
         oneTime: 50000
       });
 
-      const noExtra = calculator.calculateMortgage({
+      const noExtra = calcMortgage(calculator, {
         principal: 500000,
         annualRate: 4.5,
         years: 25,
@@ -1340,3 +1340,4 @@ describe('MortgageCalculator', () => {
     });
   });
 });
+
